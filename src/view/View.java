@@ -5,7 +5,6 @@ import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -15,14 +14,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.border.BevelBorder;
 import javax.swing.table.DefaultTableModel;
 
 import org.eclipse.paho.client.mqttv3.MqttException;
 
 import model.User;
 
-public class View extends JFrame implements ActionListener{
+public class View extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private boolean logged;
 	
@@ -38,16 +36,16 @@ public class View extends JFrame implements ActionListener{
 	private JTable messageTable;
 	private JTextField subTagField;
 	private JButton subTagButton;
+	private JLabel tagFollowedList;
 	private JTextField subUserField;
 	private JButton subUserButton;
+	private JLabel userFollowedList;
 
 	private JPanel writePanel;
 	private JTextField tagText;
 	private JTextArea messageText;
 	private JLabel tagLabel, messageLabel;
 	private JButton submitButton;
-	
-	private LoginView login;
 	
 	private User user;
 	
@@ -57,23 +55,10 @@ public class View extends JFrame implements ActionListener{
 		setWritePanel();
 		setLogged(false, "");
 		
-		setSize(1000,1000);//400 width and 500 height  
-		setLayout(null);//using no layout managers  
-		setVisible(true);//making the frame visible  
-	}
-	
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		if(logged) {
-			setLogged(false, "");
-		}
-		else {
-			try{  
-				login = new LoginView(f, this);
-			} catch(Exception ex){
-				System.out.println(ex);
-			}
-		}  
+		setSize(1000,1000);  
+		setLayout(null);  
+		setVisible(true);  
+		initiateLoginView();
 	}
 	
 	public void loginSucceded(String username) throws MqttException {
@@ -91,7 +76,12 @@ public class View extends JFrame implements ActionListener{
 		loginPanel.setBounds(0,0,1000,30);
 		loginPanel.setLayout(new BorderLayout());
 		loginButton = new JButton();
-		loginButton.addActionListener(this);
+		loginButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				initiateLoginView();
+			}
+		});
 		
 		closeButton = new JButton("Exit");
 		closeButton.addActionListener(new ActionListener() {
@@ -120,15 +110,8 @@ public class View extends JFrame implements ActionListener{
 		messageSP.setViewportView(messageTable);
 		messagePanel.add(messageSP);
 
-		DefaultTableModel tableModel = new DefaultTableModel() {
-			private static final long serialVersionUID = 1L;
-			@Override
-		    public boolean isCellEditable(int row, int column) {
-		        return false;
-		    }			
-		};
-		tableModel.setColumnIdentifiers(new String[] {"User", "Tags", "Message"});
-		messageTable.setModel(tableModel);
+		resetTable();
+		
 		messageTable.getColumnModel().getColumn(0).setPreferredWidth(100);
 		messageTable.getColumnModel().getColumn(1).setPreferredWidth(100);
 		messageTable.getColumnModel().getColumn(2).setPreferredWidth(300);
@@ -140,16 +123,12 @@ public class View extends JFrame implements ActionListener{
 		subTagButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if(user != null) {
-					try {
-						user.subscribeTag(subTagField.getText());
-					} catch (MqttException e1) {
-						e1.printStackTrace();
-					}
-					subTagField.setText("");
-				}
+				addTag(subTagField.getText());
 			}
 		});
+		tagFollowedList = new JLabel("Tags followed:");
+		tagFollowedList.setAlignmentX(Component.LEFT_ALIGNMENT);
+		
 		
 		subUserField = new JTextField();
 		subUserField.setMaximumSize(new Dimension(400,subUserField.getPreferredSize().height));
@@ -158,21 +137,18 @@ public class View extends JFrame implements ActionListener{
 		subUserButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if(user != null) {
-					try {
-						user.subscribeUser(subUserField.getText());
-					} catch (MqttException e1) {
-						e1.printStackTrace();
-					}
-					subUserField.setText("");
-				}
+				addUser(subUserField.getText());
 			}
 		});
+		userFollowedList = new JLabel("User followed:");
+		userFollowedList.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
 		messagePanel.add(subTagField);
 		messagePanel.add(subTagButton);
+		messagePanel.add(tagFollowedList);
 		messagePanel.add(subUserField);
 		messagePanel.add(subUserButton);
+		messagePanel.add(userFollowedList);
 		
 		this.add(messagePanel);
 	}
@@ -200,12 +176,14 @@ public class View extends JFrame implements ActionListener{
 		submitButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				try {
-					user.publishMessage(usernameLabel.getText(), tagText.getText(), messageText.getText());
-					tagText.setText("");
-					messageText.setText("");
-				} catch (MqttException e1) {
-					e1.printStackTrace();
+				if (user != null) {
+					try {
+						user.publishMessage(usernameLabel.getText(), tagText.getText(), messageText.getText());
+						tagText.setText("");
+						messageText.setText("");
+					} catch (MqttException e1) {
+						e1.printStackTrace();
+					}
 				}
 			}			
 		});
@@ -228,6 +206,66 @@ public class View extends JFrame implements ActionListener{
 		else {
 			loginButton.setText("login");
 			usernameLabel.setText(username);
+			cleanScreens();
 		}
+	}
+	
+	private void initiateLoginView() {
+		if(logged) {
+			setLogged(false, "");
+		}
+		else {
+			try{  
+				new LoginView(f, this);
+			} catch(Exception ex){
+				System.out.println(ex);
+			}
+		}  
+	}
+	
+	private void addTag(String tag) {
+		if(user != null) {
+			try {
+				user.subscribeTag(tag);
+				user.addTag(tag);
+				
+				String previousList = tagFollowedList.getText();
+				tagFollowedList.setText(previousList + " #" + tag);
+			} catch (MqttException e1) {
+				e1.printStackTrace();
+			}
+			subTagField.setText("");
+		}
+	}
+	private void addUser(String user) {
+		if(this.user != null) {
+			try {
+				this.user.subscribeUser(user);
+				this.user.addUser(user);
+				
+				String previousList = userFollowedList.getText();
+				userFollowedList.setText(previousList + " @" + user);
+			} catch (MqttException e1) {
+				e1.printStackTrace();
+			}
+			subUserField.setText("");
+		}
+	}
+	
+	private void cleanScreens() {
+		resetTable();
+		tagFollowedList.setText("Tags followed:");
+		userFollowedList.setText("Users followed:");
+	}
+	private void resetTable() {
+		DefaultTableModel tableModel = new DefaultTableModel() {
+			private static final long serialVersionUID = 1L;
+			@Override
+		    public boolean isCellEditable(int row, int column) {
+		        return false;
+		    }			
+		};
+		tableModel.setColumnIdentifiers(new String[] {"User", "Tags", "Message"});
+		messageTable.setModel(tableModel);
 	}
 }
