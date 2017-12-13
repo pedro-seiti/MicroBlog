@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="MicroBlog" basedir="." default="main">
+	<path id="classpath">
+		<fileset dir="lib" includes="**/*.jar"/>
+	</path>
+	
+    <target name="clean">
+        <delete dir="build"/>
+    </target>
+
+    <target name="compile">
+        <mkdir dir="build/classes"/>
+        <javac srcdir="src" destdir="build/classes" classpathref="classpath"/>
+    </target>
+
+    <target name="jar" depends="compile">
+        <mkdir dir="build/jar"/>
+        <jar destfile="build/jar/MicroBlog.jar" basedir="build/classes">
+            <manifest>
+                <attribute name="Main-Class" value="controller.Controller"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="run" depends="jar">
+		<parallel>
+			<sequential>
+				<java fork="true" classname="controller.Controller">
+					<classpath>
+						<path refid="classpath"/>
+                		<path location="build/jar/MicroBlog.jar"/>
+					</classpath>
+				</java>
+			</sequential>
+			<sequential>
+				<java fork="true" classname="controller.Controller">
+					<classpath>
+						<path refid="classpath"/>
+		                <path location="build/jar/MicroBlog.jar"/>
+					</classpath>
+				</java>
+			</sequential>
+		</parallel>
+        <java fork="true" classname="controller.Controller">
+			
+		</java>
+    </target>
+
+    <target name="clean-build" depends="clean,jar"/>
+
+    <target name="main" depends="clean,run"/>
+</project>

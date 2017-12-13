@@ -9,15 +9,12 @@ public class Publisher {
 		
 	}
 	public void publishMessage(String user, String tag, String messageString) throws MqttException {
-		System.out.println("== START PUBLISHER ==");
-
+		System.out.println("====== PUBLISHER ACTIVE =======");
 		MqttClient client = new MqttClient("tcp://localhost:1883", MqttClient.generateClientId());
 		client.connect();
 		MqttMessage message = new MqttMessage();
 		message.setPayload(messageString.getBytes());
 		client.publish(user + "/" + tag, message);
 		client.disconnect();
-
-		System.out.println("== END PUBLISHER ==");
 	}
 }
